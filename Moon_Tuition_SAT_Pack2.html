@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Moon Tuition – SAT Pack 2</title>
+<style>
+  :root {
+    --navy: #1a365d;
+    --blue: #2c5282;
+    --light: #f7fafc;
+    --card: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: var(--light);
+    color: #2d3748;
+    line-height: 1.5;
+  }
+  header {
+    background: var(--navy);
+    color: white;
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  header h1 { font-size: 1.25rem; font-weight: 600; }
+  header span { font-size: 0.85rem; opacity: 0.85; }
+  .container { max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+  .card {
+    background: var(--card);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  h2 { color: var(--navy); margin-bottom: 1rem; }
+  .subjects { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .subject-btn, button.primary, button.secondary {
+    background: var(--blue);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  button.primary { background: var(--navy); }
+  button.secondary { background: #4a5568; margin-left: 0.5rem; }
+  .subject-btn:hover, button.primary:hover { background: #2a4365; }
+  input[type="text"], input[type="password"] {
+    width: 100%;
+    padding: 0.6rem;
+    margin: 0.4rem 0 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 1rem;
+  }
+  .timer {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #c53030;
+    text-align: right;
+    margin-bottom: 1rem;
+  }
+  .question { margin-bottom: 1.25rem; }
+  .question p { margin-bottom: 0.5rem; font-weight: 500; }
+  .options label {
+    display: block;
+    padding: 0.5rem 0.75rem;
+    margin: 0.25rem 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .options label:hover { background: #edf2f7; }
+  .options input { margin-right: 0.5rem; }
+  .score { font-size: 1.25rem; font-weight: 600; color: var(--navy); margin: 1rem 0; }
+  .hidden { display: none; }
+  footer {
+    text-align: center;
+    padding: 1.5rem;
+    color: #718096;
+    font-size: 0.85rem;
+  }
+  .passage {
+    background: #edf2f7;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+  }
+  .user-list { margin-top: 1rem; font-size: 0.9rem; }
+  .user-list div { padding: 0.3rem 0; border-bottom: 1px solid #eee; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Moon Tuition – SAT Pack 2</h1>
+  <span id="header-user"></span>
+</header>
+
+<div class="container">
+  <!-- Login Screen -->
+  <div id="login" class="card">
+    <h2>SAT Pack 2 Login</h2>
+    <label>Username</label>
+    <input type="text" id="login-user" placeholder="Username">
+    <label>Password</label>
+    <input type="password" id="login-pass" placeholder="Password">
+    <button class="primary" onclick="login()">Login</button>
+  </div>
+
+  <!-- Admin Screen -->
+  <div id="admin" class="card hidden">
+    <h2>Admin – Create Student</h2>
+    <label>New Username</label>
+    <input type="text" id="new-user" placeholder="Username">
+    <label>New Password</label>
+    <input type="password" id="new-pass" placeholder="Password">
+    <button class="primary" onclick="createUser()">Create Account</button>
+    <div class="user-list" id="user-list"></div>
+    <button class="secondary" onclick="logout()" style="margin-top:1rem;">Logout</button>
+  </div>
+
+  <!-- Student Home -->
+  <div id="home" class="card hidden">
+    <h2>SAT Practice Pack 2</h2>
+    <p>Welcome. Select a subject. Each has 30 questions and a 15-minute limit.</p>
+    <div class="subjects" style="margin-top:1.5rem;">
+      <button class="subject-btn" onclick="startQuiz('maths')">Mathematics</button>
+      <button class="subject-btn" onclick="startQuiz('english')">English</button>
+    </div>
+    <button class="secondary" onclick="logout()" style="margin-top:1.5rem;">Logout</button>
+  </div>
+
+  <!-- Quiz -->
+  <div id="quiz" class="card hidden">
+    <div class="timer" id="timer">15:00</div>
+    <h2 id="quiz-title">Quiz</h2>
+    <div id="questions"></div>
+    <button class="primary" onclick="submitQuiz()">Submit Answers</button>
+  </div>
+
+  <!-- Results -->
+  <div id="results" class="card hidden">
+    <h2>Results</h2>
+    <div class="score" id="score"></div>
+    <div id="feedback"></div>
+    <button class="primary" onclick="goHome()">Back to Subjects</button>
+  </div>
+</div>
+
+<footer>
+  Moon Tuition &nbsp;|&nbsp; www.moonmocktest.com &nbsp;|&nbsp; SAT Pack 2
+</footer>
+
+<script>
+const ADMIN_USER = "admin";
+const ADMIN_PASS = "admin123";
+const TIME_LIMIT = 15 * 60;
+let timerInterval = null;
+let timeLeft = TIME_LIMIT;
+let currentUser = null;
+
+// Users stored in localStorage
+function getUsers() {
+  return JSON.parse(localStorage.getItem("sat_pack2_users") || "{}");
+}
+function saveUsers(users) {
+  localStorage.setItem("sat_pack2_users", JSON.stringify(users));
+}
+
+function login() {
+  const user = document.getElementById("login-user").value.trim();
+  const pass = document.getElementById("login-pass").value;
+  if (user === ADMIN_USER && pass === ADMIN_PASS) {
+    currentUser = "admin";
+    showScreen("admin");
+    refreshUserList();
+    return;
+  }
+  const users = getUsers();
+  if (users[user] && users[user] === pass) {
+    currentUser = user;
+    document.getElementById("header-user").textContent = "Hi, " + user;
+    showScreen("home");
+  } else {
+    alert("Invalid username or password");
+  }
+}
+
+function createUser() {
+  const user = document.getElementById("new-user").value.trim();
+  const pass = document.getElementById("new-pass").value;
+  if (!user || !pass) return alert("Enter username and password");
+  const users = getUsers();
+  if (users[user]) return alert("Username already exists");
+  users[user] = pass;
+  saveUsers(users);
+  document.getElementById("new-user").value = "";
+  document.getElementById("new-pass").value = "";
+  refreshUserList();
+  alert("Account created");
+}
+
+function refreshUserList() {
+  const users = getUsers();
+  const list = document.getElementById("user-list");
+  list.innerHTML = "<strong>Existing Students:</strong><br>";
+  Object.keys(users).forEach(u => {
+    list.innerHTML += `<div>${u}</div>`;
+  });
+  if (Object.keys(users).length === 0) list.innerHTML += "<div>No students yet</div>";
+}
+
+function logout() {
+  currentUser = null;
+  document.getElementById("header-user").textContent = "";
+  showScreen("login");
+}
+
+function showScreen(id) {
+  ["login","admin","home","quiz","results"].forEach(s => {
+    document.getElementById(s).classList.add("hidden");
+  });
+  document.getElementById(id).classList.remove("hidden");
+}
+
+const quizzes = {
+  maths: {
+    title: "Mathematics",
+    questions: [
+      { q: "If 4x − 5 = 15, what is x?", options: ["3", "5", "4", "10"], answer: 1 },
+      { q: "What is 25% of 120?", options: ["25", "30", "35", "40"], answer: 1 },
+      { q: "Area of a triangle with base 12 and height 5:", options: ["30", "60", "17", "34"], answer: 0 },
+      { q: "Simplify: 3(x − 2) + 4x", options: ["7x − 6", "7x + 6", "x − 6", "7x − 2"], answer: 0 },
+      { q: "A train travels 240 miles in 4 hours. Speed?", options: ["50 mph", "60 mph", "70 mph", "80 mph"], answer: 1 },
+      { q: "Slope of y = −3x + 2?", options: ["3", "−3", "2", "−2"], answer: 1 },
+      { q: "Solve: 2x/3 = 6", options: ["4", "9", "12", "18"], answer: 1 },
+      { q: "Mean of 5, 8, 11, 14:", options: ["9", "9.5", "10", "11"], answer: 1 },
+      { q: "What is 2/3 + 1/6?", options: ["1/2", "5/6", "3/9", "1/3"], answer: 1 },
+      { q: "Perimeter of square with side 9 cm:", options: ["18", "36", "81", "27"], answer: 1 },
+      { q: "If y = x² − 3 and x = 4, y = ?", options: ["13", "16", "19", "1"], answer: 0 },
+      { q: "What is 10% of 250?", options: ["15", "25", "35", "50"], answer: 1 },
+      { q: "Solve: 3x + 4 = 2x + 10", options: ["x = 4", "x = 6", "x = 2", "x = 8"], answer: 1 },
+      { q: "Volume of cube with side 5:", options: ["25", "75", "125", "150"], answer: 2 },
+      { q: "Which is larger: 0.6 or 5/8?", options: ["0.6", "5/8", "equal", "cannot tell"], answer: 1 },
+      { q: "Y-intercept of y = 2x − 7?", options: ["2", "−7", "7", "0"], answer: 1 },
+      { q: "$90 item with 20% discount. Sale price?", options: ["$18", "$70", "$72", "$75"], answer: 2 },
+      { q: "Simplify: (4x)(2x)", options: ["6x", "8x", "8x²", "6x²"], answer: 2 },
+      { q: "Median of 2, 4, 6, 8, 10:", options: ["4", "6", "8", "5"], answer: 1 },
+      { q: "What is 3³?", options: ["9", "27", "81", "6"], answer: 1 },
+      { q: "Solve: 4(x + 1) = 20", options: ["x = 4", "x = 5", "x = 6", "x = 3"], answer: 0 },
+      { q: "Area of circle radius 4 (π ≈ 3.14):", options: ["12.56", "25.12", "50.24", "12"], answer: 2 },
+      { q: "0.125 as a fraction:", options: ["1/4", "1/8", "1/5", "1/10"], answer: 1 },
+      { q: "If a = −3 and b = 5, a + b² = ?", options: ["22", "28", "2", "−8"], answer: 0 },
+      { q: "Ratio 2:3. Total 25. Larger share?", options: ["10", "15", "12", "18"], answer: 1 },
+      { q: "Circumference diameter 8 (π ≈ 3.14):", options: ["12.56", "25.12", "50.24", "16"], answer: 1 },
+      { q: "Solve: 5x − 2 = 3x + 6", options: ["x = 3", "x = 4", "x = 5", "x = 2"], answer: 1 },
+      { q: "Equivalent to 5(3x − 1)?", options: ["15x − 1", "15x − 5", "8x − 5", "15x + 5"], answer: 1 },
+      { q: "Range of 1, 3, 3, 7, 10:", options: ["3", "7", "9", "10"], answer: 2 },
+      { q: "What is 35% of 80?", options: ["24", "28", "32", "35"], answer: 1 }
+    ]
+  },
+  english: {
+    title: "English",
+    passage: "Public libraries have long served as free community spaces where people can read, study, and access information. In recent years, many libraries have expanded their role to include technology hubs, job-search workshops, and after-school programs. While some argue that digital resources make traditional libraries less necessary, others point out that libraries remain essential for people who lack reliable internet at home. Usage statistics in several cities show that library visits have remained steady or even increased despite the growth of online content.",
+    questions: [
+      { q: "What is the main idea of the passage?", options: ["Libraries are obsolete", "Libraries continue to serve important community roles", "Only digital resources matter", "Libraries should close"], answer: 1 },
+      { q: "According to the passage, some people argue that:", options: ["Libraries should expand more", "Digital resources make libraries less necessary", "Libraries need more books", "Internet is unreliable"], answer: 1 },
+      { q: "The word “essential” most nearly means:", options: ["optional", "necessary", "expensive", "old"], answer: 1 },
+      { q: "What do usage statistics suggest?", options: ["Visits have dropped sharply", "Visits have stayed steady or increased", "No one uses libraries", "Only students visit"], answer: 1 },
+      { q: "The author’s tone is best described as:", options: ["critical", "balanced and informative", "humorous", "strongly negative"], answer: 1 },
+      { q: "Which sentence is grammatically correct?", options: ["Libraries has expanded their role.", "Libraries have expanded their role.", "Libraries expanding their role.", "Libraries is expanded their role."], answer: 1 },
+      { q: "Choose the correctly spelled word:", options: ["neccessary", "necessary", "necesary", "nessessary"], answer: 1 },
+      { q: "What is one expanded service mentioned?", options: ["Only book lending", "Job-search workshops", "Car repair", "Sports coaching"], answer: 1 },
+      { q: "The word “hubs” in this context means:", options: ["centers", "wheels", "problems", "books"], answer: 0 },
+      { q: "Which group benefits most from free library internet?", options: ["People with home internet", "People without reliable home internet", "Only librarians", "Online companies"], answer: 1 },
+      { q: "Identify the subject: “Many libraries have expanded their role.”", options: ["Many", "libraries", "expanded", "role"], answer: 1 },
+      { q: "Synonym for “steady”:", options: ["changing", "stable", "falling", "rising"], answer: 1 },
+      { q: "The passage suggests libraries are:", options: ["only for books", "still valuable community resources", "too expensive", "outdated"], answer: 1 },
+      { q: "Correct punctuation:", options: ["Libraries offer programs, however some disagree.", "Libraries offer programs; however, some disagree.", "Libraries offer programs however some disagree.", "Libraries offer programs: however some disagree."], answer: 1 },
+      { q: "“Community spaces” refers to:", options: ["private clubs", "places open to the public", "online only", "schools only"], answer: 1 },
+      { q: "Which is an adjective in the first sentence?", options: ["public", "libraries", "served", "spaces"], answer: 0 },
+      { q: "Opposite of “increased”:", options: ["rose", "decreased", "grew", "expanded"], answer: 1 },
+      { q: "After-school programs are mentioned as:", options: ["a traditional service", "an expanded service", "a problem", "online only"], answer: 1 },
+      { q: "Correct verb: “The statistics ___ that visits remain high.”", options: ["shows", "show", "showing", "has shown"], answer: 1 },
+      { q: "Main contrast is between:", options: ["old and new books", "those who see libraries as less necessary and those who see them as essential", "cities and towns", "students and adults"], answer: 1 },
+      { q: "Correct spelling:", options: ["acess", "access", "acces", "axcess"], answer: 1 },
+      { q: "What can be inferred?", options: ["The author wants libraries closed", "The author sees ongoing value in libraries", "The author prefers only digital", "The author is a critic"], answer: 1 },
+      { q: "“Reliable” most nearly means:", options: ["expensive", "dependable", "slow", "free"], answer: 1 },
+      { q: "Best title:", options: ["Why Libraries Should Close", "The Continuing Role of Public Libraries", "Only Online Learning", "Job Workshops Only"], answer: 1 },
+      { q: "Preposition in “at home”:", options: ["at", "home", "in", "none"], answer: 0 },
+      { q: "The passage implies free access helps:", options: ["only wealthy people", "people without home internet", "library staff only", "publishers"], answer: 1 },
+      { q: "Passive voice example:", options: ["Libraries offer workshops.", "Workshops are offered by libraries.", "People visit libraries.", "Statistics show growth."], answer: 1 },
+      { q: "Synonym for “expanded”:", options: ["reduced", "enlarged", "closed", "ignored"], answer: 1 },
+      { q: "Primary purpose:", options: ["to entertain", "to inform about the role of libraries", "to advertise a product", "to tell a personal story"], answer: 1 },
+      { q: "Correct form: “Several cities ___ reported steady visits.”", options: ["has", "have", "having", "had been"], answer: 1 }
+    ]
+  }
+};
+
+let currentQuiz = null;
+let currentAnswers = [];
+
+function updateTimer() {
+  const minutes = Math.floor(timeLeft / 60);
+  const seconds = timeLeft % 60;
+  document.getElementById("timer").textContent = 
+    `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+  if (timeLeft <= 0) {
+    clearInterval(timerInterval);
+    submitQuiz();
+  } else {
+    timeLeft--;
+  }
+}
+
+function startQuiz(key) {
+  currentQuiz = quizzes[key];
+  currentAnswers = new Array(currentQuiz.questions.length).fill(-1);
+  timeLeft = TIME_LIMIT;
+  showScreen("quiz");
+  document.getElementById("quiz-title").textContent = currentQuiz.title;
+  
+  if (timerInterval) clearInterval(timerInterval);
+  updateTimer();
+  timerInterval = setInterval(updateTimer, 1000);
+
+  let html = "";
+  if (currentQuiz.passage) {
+    html += `<div class="passage">${currentQuiz.passage}</div>`;
+  }
+  currentQuiz.questions.forEach((item, i) => {
+    html += `<div class="question">
+      <p>${i+1}. ${item.q}</p>
+      <div class="options">`;
+    item.options.forEach((opt, j) => {
+      html += `<label><input type="radio" name="q${i}" value="${j}" onchange="currentAnswers[${i}]=${j}"> ${opt}</label>`;
+    });
+    html += `</div></div>`;
+  });
+  document.getElementById("questions").innerHTML = html;
+}
+
+function submitQuiz() {
+  if (timerInterval) clearInterval(timerInterval);
+  let correct = 0;
+  let feedback = "<h3 style='margin:1rem 0 0.5rem;color:#1a365d;'>Review</h3>";
+  currentQuiz.questions.forEach((item, i) => {
+    const user = currentAnswers[i];
+    const isCorrect = user === item.answer;
+    if (isCorrect) correct++;
+    const userText = user >= 0 ? item.options[user] : "(no answer)";
+    const correctText = item.options[item.answer];
+    const mark = isCorrect ? "✅" : "❌";
+    feedback += `<div style="margin-bottom:0.75rem;padding:0.5rem;background:${isCorrect ? '#f0fff4' : '#fff5f5'};border-radius:6px;">
+      <p><strong>Q${i+1}.</strong> ${item.q} ${mark}</p>
+      <p>Your answer: <em>${userText}</em></p>
+      <p>Correct answer: <strong>${correctText}</strong></p>
+    </div>`;
+  });
+  showScreen("results");
+  document.getElementById("score").textContent = `Score: ${correct} / ${currentQuiz.questions.length}`;
+  document.getElementById("feedback").innerHTML = feedback;
+}
+
+function goHome() {
+  if (timerInterval) clearInterval(timerInterval);
+  showScreen("home");
+}
+</script>
+</body>
+</html>
